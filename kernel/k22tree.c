@@ -17,17 +17,6 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-/* Get the first child of a process */
-static struct task_struct *get_first_child(struct task_struct *parent)
-{
-	struct task_struct *child;
-
-	if (list_empty(&parent->children))
-		return NULL;
-	child = list_first_entry(&parent->children, struct task_struct, sibling);
-	return child;
-}
-
 /* Get the next sibling of a process */
 static struct task_struct *get_next_sibling(struct task_struct *task)
 {
@@ -37,17 +26,6 @@ static struct task_struct *get_next_sibling(struct task_struct *task)
 		return NULL;
 	next = list_next_entry(task, sibling);
 	return next;
-}
-
-/* Get the oldest sibling (first in parent's children list) */
-static struct task_struct *get_oldest_sibling(struct task_struct *task)
-{
-	struct task_struct *sibling;
-
-	if (!task->parent || list_empty(&task->parent->children))
-		return NULL;
-	sibling = list_first_entry(&task->parent->children, struct task_struct, sibling);
-	return sibling;
 }
 
 /* Get the youngest child (last in children list) */
@@ -92,7 +70,7 @@ static int dfs_traverse_iterative(struct task_struct *root, struct k22info *buf,
 	struct task_struct **stack;
 	int stack_top = 0;
 	int stack_size = 256; /* Initial stack size */
-	struct task_struct *current, *child;
+	struct task_struct *curr_task, *child;
 	int ret = 0;
 
 	/* Allocate stack for DFS traversal */
@@ -105,17 +83,17 @@ static int dfs_traverse_iterative(struct task_struct *root, struct k22info *buf,
 
 	while (stack_top > 0) {
 		/* Pop current task from stack */
-		current = stack[--stack_top];
+		curr_task = stack[--stack_top];
 
 		/* Process current task if it's a thread group leader */
-		if (thread_group_leader(current)) {
+		if (thread_group_leader(curr_task)) {
 			if (*count < max_entries)
-				fill_k22info(&buf[*count], current);
+				fill_k22info(&buf[*count], curr_task);
 			(*count)++;
 		}
 
 		/* Push children onto stack in reverse order (to maintain DFS order) */
-		list_for_each_entry_reverse(child, &current->children, sibling) {
+		list_for_each_entry_reverse(child, &curr_task->children, sibling) {
 			/* Check if we need to expand the stack */
 			if (stack_top >= stack_size) {
 				struct task_struct **new_stack;
