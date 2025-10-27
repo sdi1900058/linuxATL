@@ -22,7 +22,7 @@ static struct task_struct *get_next_sibling(struct task_struct *task)
 {
 	struct task_struct *next;
 
-	if (!task->parent || list_is_last(&task->sibling, &task->parent->children))
+	if (!task->real_parent || list_is_last(&task->sibling, &task->real_parent->children))
 		return NULL;
 	next = list_next_entry(task, sibling);
 	return next;
@@ -46,7 +46,7 @@ static void fill_k22info(struct k22info *info, struct task_struct *task)
 
 	strscpy(info->comm, task->comm, sizeof(info->comm));
 	info->pid = task_pid_nr(task);
-	info->parent_pid = task->parent ? task_pid_nr(task->parent) : 0;
+	info->parent_pid = task->real_parent ? task_pid_nr(task->real_parent) : 0;
 	info->nvcsw = task->nvcsw;
 	info->nivcsw = task->nivcsw;
 	info->start_time = task->start_time;
