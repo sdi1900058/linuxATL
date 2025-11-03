@@ -42,7 +42,7 @@ static struct task_struct *get_youngest_child(struct task_struct *parent)
 /* Fill k22info structure with process information */
 static void fill_k22info(struct k22info *info, struct task_struct *task)
 {
-	struct task_struct *first_child, *oldest_sibling;
+	struct task_struct *youngest_child, *next_sibling;
 
 	strscpy(info->comm, task->comm, sizeof(info->comm));
 	info->pid = task_pid_nr(task);
@@ -51,13 +51,13 @@ static void fill_k22info(struct k22info *info, struct task_struct *task)
 	info->nivcsw = task->nivcsw;
 	info->start_time = task->start_time;
 
-	/* Get first child (youngest) */
-	first_child = get_youngest_child(task);
-	info->first_child_pid = first_child ? task_pid_nr(first_child) : 0;
+	/* Get first child (youngest child, visited first in DFS order) */
+	youngest_child = get_youngest_child(task);
+	info->first_child_pid = youngest_child ? task_pid_nr(youngest_child) : 0;
 
-	/* Get oldest sibling */
-	oldest_sibling = get_next_sibling(task);
-	info->next_sibling_pid = oldest_sibling ? task_pid_nr(oldest_sibling) : 0;
+	/* Get next sibling (next in children list, visited next in DFS order) */
+	next_sibling = get_next_sibling(task);
+	info->next_sibling_pid = next_sibling ? task_pid_nr(next_sibling) : 0;
 }
 
 /*
