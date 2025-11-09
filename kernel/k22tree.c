@@ -126,13 +126,16 @@ SYSCALL_DEFINE2(k22tree, struct k22info __user *, buf, int __user *, ne)
 	int num_entries, total_processes = 0;
 	int ret = 0;
 	struct task_struct *task;
+	size_t entries_to_copy;
 
 	/* Input validation */
 	if (!buf || !ne)
 		return -EINVAL;
 	if (get_user(num_entries, ne))
 		return -EFAULT;
-	if (num_entries < 1)
+	if (num_entries <= 0)
+		return -EINVAL;
+	if (num_entries > PID_MAX_LIMIT)
 		return -EINVAL;
 
 	/* Allocate kernel buffer outside of lock */
@@ -152,14 +155,14 @@ SYSCALL_DEFINE2(k22tree, struct k22info __user *, buf, int __user *, ne)
 	}
 
 	/* Copy data to user space (no lock held) */
-	if (copy_to_user(buf, kern_buf, min(total_processes, num_entries) *
-			 sizeof(struct k22info))) {
+	entries_to_copy = min_t(size_t, total_processes, num_entries);
+	if (copy_to_user(buf, kern_buf, entries_to_copy * sizeof(struct k22info))) {
 		kfree(kern_buf);
 		return -EFAULT;
 	}
 
 	/* Update number of entries written */
-	if (put_user(min(total_processes, num_entries), ne)) {
+	if (put_user((int)entries_to_copy, ne)) {
 		kfree(kern_buf);
 		return -EFAULT;
 	}
