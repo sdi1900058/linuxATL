@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-ROOT_DIR="/home/jortzis/leitourgika/linuxATL"
+ROOT_DIR="/home/Desktop/linuxATL"
 BUILD_DIR="${ROOT_DIR}/tests"
 SPAWNER_SRC="${BUILD_DIR}/thread_spawner.c"
 SPAWNER_BIN="${BUILD_DIR}/thread_spawner"
