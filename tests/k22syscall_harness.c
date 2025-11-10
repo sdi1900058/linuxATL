@@ -24,6 +24,7 @@ static void usage(const char *prog)
 		"  -i, --iterations N    Repeat syscall N times (default: 1)\n"
 		"      --null-buf        Pass NULL for buf\n"
 		"      --null-ne         Pass NULL for ne pointer\n"
+		"      --force-small-buffer Keep buffer at --buffer-size even if smaller than *ne\n"
 		"      --quiet           Only print final status per call\n"
 		"  -h, --help            Show this help\n"
 		"\n"
@@ -42,6 +43,7 @@ int main(int argc, char *argv[])
 		{ "null-buf", no_argument, NULL, 1 },
 		{ "null-ne", no_argument, NULL, 2 },
 		{ "quiet", no_argument, NULL, 3 },
+		{ "force-small-buffer", no_argument, NULL, 4 },
 		{ "help", no_argument, NULL, 'h' },
 		{ 0, 0, 0, 0 }
 	};
@@ -54,6 +56,7 @@ int main(int argc, char *argv[])
 	bool null_buf = false;
 	bool null_ne = false;
 	bool quiet = false;
+	bool force_small_buffer = false;
 
 	while ((opt = getopt_long(argc, argv, "n:b:i:h", long_opts, &long_index)) != -1) {
 		switch (opt) {
@@ -80,6 +83,9 @@ int main(int argc, char *argv[])
 		case 3:
 			quiet = true;
 			break;
+		case 4:
+			force_small_buffer = true;
+			break;
 		default:
 			usage(argv[0]);
 			return EXIT_FAILURE;
@@ -87,20 +93,35 @@ int main(int argc, char *argv[])
 	}
 
 	if (!quiet) {
-		printf("k22syscall_harness configuration:\n");
-		printf("  initial *ne      : %d\n", initial_ne);
-		printf("  buffer entries   : %d%s\n", buffer_entries,
-		       null_buf ? " (ignored, --null-buf)" : "");
-		printf("  iterations       : %d\n", iterations);
-		printf("  buf pointer      : %s\n", null_buf ? "NULL" : "allocated");
-		printf("  ne pointer       : %s\n", null_ne ? "NULL" : "provided");
+	printf("k22syscall_harness configuration:\n");
+	printf("  initial *ne      : %d\n", initial_ne);
+	printf("  buffer entries   : %d", buffer_entries);
+	if (null_buf) {
+		printf(" (ignored, --null-buf)");
+	} else if (force_small_buffer) {
+		printf(" (forcing under-sized buffer)");
+	}
+	printf("\n");
+	printf("  iterations       : %d\n", iterations);
+	printf("  buf pointer      : %s\n", null_buf ? "NULL" : "allocated");
+	printf("  ne pointer       : %s\n", null_ne ? "NULL" : "provided");
 	}
 
 	struct k22info *buf = NULL;
 	size_t buf_size_bytes = 0;
 
 	if (!null_buf && buffer_entries > 0) {
-		buf_size_bytes = (size_t)buffer_entries * sizeof(*buf);
+		size_t alloc_entries = (size_t)buffer_entries;
+
+		if (!force_small_buffer && initial_ne > (int)alloc_entries) {
+			if (!quiet) {
+				printf("  note: expanding buffer allocation to %d entries to match *ne\n",
+				       initial_ne);
+			}
+			alloc_entries = (size_t)initial_ne;
+		}
+
+		buf_size_bytes = alloc_entries * sizeof(*buf);
 		buf = malloc(buf_size_bytes);
 		if (!buf) {
 			perror("malloc");
